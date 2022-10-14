@@ -24,12 +24,12 @@
     <div class="wrapper">
       <div class="card">
         <ul class="clps-menu">
-          <li v-for="item in info" :key="item.groupId" class="clps-menu__item clps">
-            <div @click="collapseToggle(item.groupId)" class="clps__button">
-              <p class="d-flex align-items-center">{{ item.groupName }} <i class='ml-1 bx ' :class="[collapseActive == item.groupId ? 'bxs-down-arrow' : 'bxs-right-arrow']"></i></p>
+          <li v-for="item in info" :key="item.index" class="clps-menu__item clps">
+            <div @click="collapseToggle(item.name)" class="clps__button">
+              <p class="d-flex align-items-center">{{ item.name }} <i class='ml-1 bx ' :class="[collapseActive == item.name ? 'bxs-down-arrow' : 'bxs-right-arrow']"></i></p>
             </div>
             <Transition duration="350" name="nested">
-              <div v-if="collapseActive == item.groupId" class="clps__list list">
+              <div v-if="collapseActive == item.name" class="clps__list list">
                 <div class="custom-table">
                   <div v-if="item.items.length != 0" class="custom-table__header">
                     <p class="w-1">№</p>
@@ -49,8 +49,8 @@
                     <p class="w-4">{{ itemList.ColorCode }} {{ itemList.Color }}</p>
                     <p class="w-5">{{ itemList.Count }} {{ itemList.Unit }}</p>
                     <div class="btns w-6">
-                      <button @click="changeModalAdd(2, itemList)" type="button" class="btn btn-warning"><i class='bx bx-edit'></i></button>
-                      <button @click="openModalDel(itemList.id)" type="button" class="btn btn-danger"><i class='bx bxs-trash'></i></button>
+                      <button @click="changeModalAdd(itemList)" type="button" class="btn btn-warning"><i class='bx bx-edit'></i></button>
+                      <!-- <button @click="openModalDel(itemList.id)" type="button" class="btn btn-danger"><i class='bx bxs-trash'></i></button> -->
                     </div>
                   </div>
                 </div>
@@ -66,7 +66,7 @@
       <i class="fa fa-plus-circle" aria-hidden="true"></i>
     </div>
     <div v-show="modalAdd" class="modal-add">
-      <form class="form" action="">
+      <form v-if="btnChange != true" class="form" action="">
         <h1 class="form__title">Филиал: {{ branchValue.name }}</h1>
         <div class="selects">
           <multiselect v-model="metterGroupValue" :class="$v.metterGroupValue.$error ? 'is-invalid': ''" placeholder="" label="name" track-by="id" :options="metterGroupOption" :multiple="false" :taggable="false" :searchable="false"></multiselect>
@@ -76,7 +76,8 @@
           <multiselect v-model="metterValue" :class="$v.metterValue.$error ? 'is-invalid': ''" placeholder="" label="name" track-by="code" :options="metterOption" :multiple="false" :taggable="false" :searchable="false"></multiselect>
           <span>{{ $t('matter') }}</span>
         </div>
-        <h2 class="form__title">Цвет: {{ metterValue.itemColorName }}</h2>
+        <p class="form__title">Цвет код: {{ metterValue.itemColor }}</p>
+        <p class="form__title">Цвет: {{ metterValue.itemColorName }}</p>
         <div class="name count">
           <div class="position-relative" :class="$v.count.$error ? 'is-invalid': ''">
             <input id="count" v-model="count" class="input" type="number" autocomplete="off">
@@ -86,7 +87,21 @@
         </div>
         <div class="btns">
           <button v-if="btnChange != true" @click.prevent="additems()" class="btn btn-success">Добавить</button>
-          <button v-else-if="btnChange == true" @click.prevent="editMetter()" class="btn btn-warning" type="button">Изменить</button>
+          <button @click="closeModalAdd()" class="btn btn-outline-danger" type="button">Отмена</button>
+        </div>
+      </form>
+      <form v-else-if="btnChange == true" class="form" action="">
+        <p class="form__title"><span>Филиал:</span> {{ branchValue.name }}</p>
+        <p class="form__title"><span>Название:</span> {{ infoChange.Name }}</p>
+        <p class="form__title"><span>Цвет:</span> {{ infoChange.ColorCode }} {{ infoChange.Color }}</p>
+        <p class="form__title"><span>Кол-во:</span> {{ count }}</p>
+        <div class="count-btn">
+          <button @click.prevent="minus()" class="btn btn-left bg-danger" :disabled='btnIsDisabled'><i class='bx bx-minus'></i></button>
+          <input v-model="countItem" class="input" type="number">
+          <button @click.prevent="plus()" class="btn btn-right bg-success"><i class='bx bx-plus'></i></button>
+        </div>
+        <div class="btns">
+          <button @click.prevent="editItems()" class="btn btn-warning" type="button" :disabled="btnSubmitIsDisabled">Изменить</button>
           <button @click="closeModalAdd()" class="btn btn-outline-danger" type="button">Отмена</button>
         </div>
       </form>
@@ -119,6 +134,7 @@ export default {
       modalDelete: false,
       btnChange: false,
       castelmetterValue: false,
+      btnSubmitIsDisabled: true,
       collapseActive: 0,
       branchValue: '',
       branchOption: [],
@@ -129,7 +145,10 @@ export default {
       metterOption: [],
       unitValue: '',
       unitOption: [],
-      count: '',
+      infoChange: [],
+      count: 0,
+      countItem: 0,
+      countParametrs: 0,
       info: [],
       token: '',
       api: ''
@@ -293,70 +312,94 @@ export default {
           });
       }
     },
-    // editMetter() {
-    //   this.$v.$touch()
-    //   if (this.$v.metterCode.$invalid || this.$v.metterName.$invalid || this.$v.metterUnitValue.$invalid || this.$v.metterGroupNameValue.$invalid || this.$v.metterColorValue.$invalid) {
-    //     this.$toast.open({
-    //       message: 'Ввидите данные правильно',
-    //       type: "error"
+    editItems() {
+      this.$v.$touch()
+      if (this.count == 0) {
+        this.$toast.open({
+          message: 'Ввидите данные правильно',
+          type: "error"
+        })
+      } else {
+        if(this.countParametrs == 0) {
+          axios.post(`${this.api}/delitems/`, {
+            "branch": this.branchValue.id,			//# ID филиала
+            "itemTemplate": this.infoChange.Id,		//# ID сырья
+            "count": Math.abs(this.count)
+            },
+            {
+              headers: {
+                'Authorization': `Token ${this.token}`
+              }
+            })
+            .then(response => {
+              // console.log(response.data);
+              // console.log(response.data.code);
+              if(response.data.code == 1) {
+                this.$toast.success('Изменено');
+                this.itemsbybranch();
+              } else {
+                this.$toast.error(response.data.msg);
+              }
+            })
+            .catch(e => console.log(e))
+            .finally(()=> {
+              this.closeModalAdd();
+              this.loading = false;
+            });
+        } else if(this.countParametrs == 1) {
+          this.loading = true;
+          axios.post(`${this.api}/additems/`, {
+              "branch": this.branchValue.id,
+              "itemTemplate": this.infoChange.Id,
+              "count": +this.count
+            }, 
+            {
+              headers: {
+                'Authorization': `Token ${this.token}`
+              }
+            })
+            .then(response => {
+              if(response.data.code == 1) {
+                this.$toast.success('Изменено');
+                this.itemsbybranch();
+              } else {
+                this.$toast.error(response.data.msg);
+              }
+            })
+            .catch(e => console.log(e))
+            .finally(()=> {
+              this.closeModalAdd();
+              this.loading = false;
+            });
+        }
+        this.loading = true;
+      }
+    },
+    // deleteMetter() {
+    //   this.loading = true;
+    //   axios.delete(`${this.api}/ItemTemplate-delete/${this.metterId}/`, {
+    //       headers: {
+    //         'Authorization': `Token ${this.token}`
+    //       }
     //     })
-    //   } else {
-    //     this.loading = true;
-    //     this.loading = true;
-    //     axios.put(`${this.api}/itemTemplates/${this.metterId}/`, {
-    //         "code": this.metterCode,
-    //         "name": this.metterName,
-    //         "unit": this.metterUnitValue.code,
-    //         "group": this.metterGroupNameValue.code,
-    //         "color": this.metterColorValue.id
-    //       },
-    //       {
-    //         headers: {
-    //           'Authorization': `Token ${this.token}`
-    //         }
-    //       })
-    //       .then(response => {
-    //         // console.log(response.data);
-    //         // console.log(response.data.code);
-    //         if(response.data.code == 1) {
-    //           this.$toast.success('Изменено');
-    //           this.getMetterGroups();
-    //         } else {
-    //           this.$toast.error(response.data.msg);
-    //         }
-    //       })
-    //       .catch(e => console.log(e))
-    //       .finally(()=> {
-    //         this.closeModalAdd();
-    //         this.loading = false;
-    //       });
-    //   }
+    //     .then(response => {
+    //       if(response.data.code == 1) {
+    //         this.$toast.success('Удаленно');
+    //         this.getMetterGroups();
+    //       } else {
+    //         this.$toast.error(response.data.msg);
+    //       }
+    //     })
+    //     .catch(e => console.log(e))
+    //     .finally(()=> {
+    //       this.closeModalAdd();
+    //       this.loading = false;
+    //     });
     // },
-    deleteMetter() {
-      this.loading = true;
-      axios.delete(`${this.api}/ItemTemplate-delete/${this.metterId}/`, {
-          headers: {
-            'Authorization': `Token ${this.token}`
-          }
-        })
-        .then(response => {
-          if(response.data.code == 1) {
-            this.$toast.success('Удаленно');
-            this.getMetterGroups();
-          } else {
-            this.$toast.error(response.data.msg);
-          }
-        })
-        .catch(e => console.log(e))
-        .finally(()=> {
-          this.closeModalAdd();
-          this.loading = false;
-        });
-    },
-    openModalDel(id) {
-      this.metterId = id;
-      this.modalDelete = true;
-    },
+    // openModalDel(id) {
+    //   this.metterId = id;
+    //   this.modalDelete = true;
+    // },
     openModalAdd() {
       this.modalAdd = true;
     },
@@ -368,43 +411,48 @@ export default {
       this.metterGroupValue = '';
       this.metterValue = '';
       this.unitValue = '';
-      this.count = '';
+      this.count = 0;
+      this.countItem = 0;
+      this.infoChange = [];
       this.$v.$reset();
     },
-    changeModalAdd(params, item) {
+    changeModalAdd(item) {
+      console.log(item);
       this.modalAdd = true;
       this.btnChange = true;
-      this.text = false;
-      if(params == 1) {
-        // console.log(item);
-        this.madalParams = 1;
-        this.metterGroupId = item.id;
-        this.metterGroupName = item.name;
-      } else {
-        // console.log(item);
-        this.madalParams = 2;
-        this.metterGroupNameValue = this.metterGroupNameOption.find(items => {
-          if(items.code == item.group) {
-            return item
-          }
-        })
-        this.metterId = item.id;
-        this.metterName = item.name;
-        this.metterCode = item.code;
-        this.metterUnitValue = this.metterUnitOption.find(items => {
-          if(items.code == item.unit) {
-            return item
-          }
-        })
-        this.metterColorValue = this.metterColorOption.find(items => {
-          if(items.id == item.color) {
-            return item
-          }
-        })
-        // this.lastName = lastName;
-        // this.firstName = firstName;
-      }
-    }
+      // this.madalParams = 2;
+      this.infoChange = item;
+      this.countItem = item.Count;
+      // this.metterGroupValue = this.metterGroupOption.find(items => {
+      //   if(items.code == item.group) {
+      //     return item
+      //   }
+      // })
+      // this.metterId = item.id;
+      // this.metterName = item.name;
+      // this.metterCode = item.code;
+      // this.metterUnitValue = this.metterUnitOption.find(items => {
+      //   if(items.code == item.unit) {
+      //     return item
+      //   }
+      // })
+      // this.metterColorValue = this.metterColorOption.find(items => {
+      //   if(items.id == item.color) {
+      //     return item
+      //   }
+      // })
+      // this.count = item.Count;
+    },
+    minus() {
+      this.count = this.count - 1;
+      this.countItem = this.countItem - 1;
+      this.countParametrs = 0;
+    },
+    plus() {
+      this.count = this.count + 1;
+      this.countItem = this.countItem + 1;
+      this.countParametrs = 1;
+    },
   },
   watch: {
     branchValue() {
@@ -436,6 +484,25 @@ export default {
         });
       }
     },
+    countItem() {
+      if(this.countItem == 0) {
+        this.btnIsDisabled = true;
+      } else {
+        this.btnIsDisabled = false;
+      }
+      if(this.count != 0) {
+        this.btnSubmitIsDisabled = false;
+      } else {
+        this.btnSubmitIsDisabled = true;
+      }
+      this.count = this.countItem - this.infoChange.Count;
+    },
+    plus() {
+      this.modelParametrs = 1;
+    },
+    minus() {
+      this.modelParametrs = 0;
+    }
   },
   validations: {
     branchValue: {
@@ -821,6 +888,51 @@ export default {
           right: 18px;
           top: calc(50% - 16px);
           transform: translateY(calc(50% - 16px));
+        }
+      }
+      
+      .count-btn {
+        display: flex;
+        align-items: center;
+        .btn {
+          width: 45px;
+          height: 34px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-family: 'Roboto';
+          font-size: 1.5rem;
+          line-height: 1.5rem;
+          color: #fff;
+          // background: gray;
+          // padding: 5px 15px;
+          border-radius: 0;
+          margin-bottom: 15px;
+          outline: none;
+          &:focus {
+            box-shadow: none;
+          }
+          &-left {
+            border-bottom-left-radius: 10px;
+            border-top-left-radius: 10px;
+            // background-color: red;
+          }
+          &-right {
+            border-bottom-right-radius: 10px;
+            border-top-right-radius: 10px;
+            // background-color: green;
+          }
+        }
+        p {
+          // width: 34px;
+          height: 34px;
+          font-family: 'Roboto';
+          font-size: 1.5rem !important;
+          line-height: 1.5rem !important;
+          background: rgba(gray, 0.2);
+          padding: 5px 10px;
+          border-radius: none;
+          margin-bottom: 15px !important;
         }
       }
     }
