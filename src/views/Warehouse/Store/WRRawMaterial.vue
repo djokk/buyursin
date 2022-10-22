@@ -14,12 +14,12 @@
     <div class="wrapper">
       <div class="card">
         <ul class="clps-menu">
-          <li v-for="item in info" :key="item.groupId" class="clps-menu__item clps">
-            <div @click="collapseToggle(item.groupId)" class="clps__button">
-              <p class="d-flex align-items-center">{{ item.groupName }} <i class='ml-1 bx ' :class="[collapseActive == item.groupId ? 'bxs-down-arrow' : 'bxs-right-arrow']"></i></p>
+          <li v-for="item in info" :key="item.index" class="clps-menu__item clps">
+            <div @click="collapseToggle(item.name)" class="clps__button">
+              <p class="d-flex align-items-center">{{ item.name }} <i class='ml-1 bx ' :class="[collapseActive == item.name ? 'bxs-down-arrow' : 'bxs-right-arrow']"></i></p>
             </div>
             <Transition duration="350" name="nested">
-              <div v-if="collapseActive == item.groupId" class="clps__list list">
+              <div v-if="collapseActive == item.name" class="clps__list list">
                 <div class="custom-table">
                   <div v-if="item.items.length != 0" class="custom-table__header">
                     <p class="w-1">№</p>
@@ -27,7 +27,6 @@
                     <p class="w-3">Название</p>
                     <p class="w-4">Цвет</p>
                     <p class="w-5">Кол.</p>
-                    <p class="w-6"></p>
                   </div>
                   <div v-else class="custom-table__header">
                     <p>Пусто</p>
@@ -38,10 +37,6 @@
                     <p class="w-3">{{ itemList.Name }}</p>
                     <p class="w-4">{{ itemList.ColorCode }} {{ itemList.Color }}</p>
                     <p class="w-5">{{ itemList.Count }} {{ itemList.Unit }}</p>
-                    <div class="btns w-6">
-                      <button @click="changeModalAdd(2, itemList)" type="button" class="btn btn-warning"><i class='bx bx-edit'></i></button>
-                      <button @click="openModalDel(itemList.id)" type="button" class="btn btn-danger"><i class='bx bxs-trash'></i></button>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -50,47 +45,6 @@
         </ul>
       </div>
     </div>
-    <!-- <div class="container-fluid">
-    </div> -->
-    <div @click="openModalAdd()" class="btn-add">
-      <i class="fa fa-plus-circle" aria-hidden="true"></i>
-    </div>
-    <div v-show="modalAdd" class="modal-add">
-      <form class="form" action="">
-        <h1 class="form__title">Филиал: {{ branchValue.name }}</h1>
-        <div class="selects">
-          <multiselect v-model="metterGroupValue" :class="$v.metterGroupValue.$error ? 'is-invalid': ''" placeholder="" label="name" track-by="id" :options="metterGroupOption" :multiple="false" :taggable="false" :searchable="false"></multiselect>
-          <span>{{ $t('groupMatter') }}</span>
-        </div>
-        <div class="selects">
-          <multiselect v-model="metterValue" :class="$v.metterValue.$error ? 'is-invalid': ''" placeholder="" label="name" track-by="code" :options="metterOption" :multiple="false" :taggable="false" :searchable="false"></multiselect>
-          <span>{{ $t('matter') }}</span>
-        </div>
-        <h2 class="form__title">Цвет: {{ metterValue.color }}</h2>
-        <div class="name count">
-          <div class="position-relative" :class="$v.count.$error ? 'is-invalid': ''">
-            <input id="count" v-model="count" class="input" type="number" autocomplete="off">
-            <p>{{ unitValue != '' ? unitValue.name : '' }}</p>
-          </div>
-          <span>{{ $t('count') }}</span>
-        </div>
-        <div class="btns">
-          <button v-if="btnChange != true" @click.prevent="additems()" class="btn btn-success">Добавить</button>
-          <button v-else-if="btnChange == true" @click.prevent="editMetter()" class="btn btn-warning" type="button">Изменить</button>
-          <button @click="closeModalAdd()" class="btn btn-outline-danger" type="button">Отмена</button>
-        </div>
-      </form>
-    </div>
-    <div v-if="modalDelete" class="modal-delete">
-      <form @submit.prevent="deleteMetter()" class="form" action="">
-        <p>Вы уверенны что хотите удалить ?</p>
-        <div class="btns">
-          <button class="btn btn-success" type="submit">ДА</button>
-          <button @click="modalDelete = !modalDelete" class="btn btn-outline-danger" type="button">НЕТ</button>
-        </div>
-      </form>
-    </div>
-    <div v-show="modalAdd || modalDelete" class="modal-bg"></div>
     <Loading v-show="loading"/>
   </div>
 </template>
@@ -105,24 +59,10 @@ export default {
   data() {
     return {
       loading: false,
-      modalAdd: false,
-      modalDelete: false,
-      btnChange: false,
-      castelmetterValue: false,
-      collapseActive: 0,
-      branchValue: '',
-      branchOption: [],
-      metterGroupValue: '',
-      metterGroupOption: [],
-      metter: [],
-      metterValue: '',
-      metterOption: [],
-      unitValue: '',
-      unitOption: [],
-      count: '',
+      collapseActive: '',
       info: [],
-      auth: [],
       token: '',
+      auth: [],
       api: ''
     }
   },
@@ -136,69 +76,67 @@ export default {
   mounted() {
     this.token = sessionStorage.getItem('token');
     this.auth = JSON.parse(sessionStorage.getItem('auth'));
-    this.loading = true;
-    this.getMetterGroups();
     this.itemsbybranch();
   },
   methods: {
-    getMetterGroups() {
-      // this.info = [];
-      this.metterGroupOption = [];
-      this.metterOption = [];
-      axios.get(`${this.api}/itemgroups/`, {
-          headers: {
-            'Authorization': `Token ${this.token}`
-          }
-        })
-        .then(response => {
-          // console.log(response.data);
-          // this.userGroup = response.data;
-          for(let i = 0; i < response.data.length; i++) {
-            const list = {
-              'id': response.data[i].id,
-              'name': response.data[i].name,
-              'list': []
-            }
-            this.metter.push(list);
-          }
+    // getMetterGroups() {
+    //   // this.info = [];
+    //   this.metterGroupOption = [];
+    //   this.metterOption = [];
+    //   axios.get(`${this.api}/itemgroups/`, {
+    //       headers: {
+    //         'Authorization': `Token ${this.token}`
+    //       }
+    //     })
+    //     .then(response => {
+    //       // console.log(response.data);
+    //       // this.userGroup = response.data;
+    //       for(let i = 0; i < response.data.length; i++) {
+    //         const list = {
+    //           'id': response.data[i].id,
+    //           'name': response.data[i].name,
+    //           'list': []
+    //         }
+    //         this.metter.push(list);
+    //       }
           
-          this.metterGroupOption = response.data;
-          this.getMetter();
-        })
-        .catch(e => console.log(e))
-        .finally(() => { this.loading = false; });
-    },
-    getMetter() {
-      axios.get(`${this.api}/itemTemplates/`, {
-          headers: {
-            'Authorization': `Token ${this.token}`
-          }
-        })
-        .then(response => {
-          // console.log(response.data);
-          for (let i = 0; i < this.metter.length; i++) {
-            for(let t = 0; t < response.data.length; t++) {
-              if(this.metter[i].id == response.data[t].group) {
-                this.metter[i].list.push(response.data[t]);
-              }
-            }
-          }
-          // this.metterAll = response.data;
-          this.getUnits();
-        })
-        .catch(e => console.log(e));
-    },
-    getUnits() {
-      axios.get(`${this.api}/units/`, {
-          headers: {
-            'Authorization': `Token ${this.token}`
-          }
-        })
-        .then(responce => {
-          this.unitOption = responce.data;
-        })
-        .catch(e => console.log(e));
-    },
+    //       this.metterGroupOption = response.data;
+    //       this.getMetter();
+    //     })
+    //     .catch(e => console.log(e))
+    //     .finally(() => { this.loading = false; });
+    // },
+    // getMetter() {
+    //   axios.get(`${this.api}/itemTemplates/`, {
+    //       headers: {
+    //         'Authorization': `Token ${this.token}`
+    //       }
+    //     })
+    //     .then(response => {
+    //       // console.log(response.data);
+    //       for (let i = 0; i < this.metter.length; i++) {
+    //         for(let t = 0; t < response.data.length; t++) {
+    //           if(this.metter[i].id == response.data[t].group) {
+    //             this.metter[i].list.push(response.data[t]);
+    //           }
+    //         }
+    //       }
+    //       // this.metterAll = response.data;
+    //       this.getUnits();
+    //     })
+    //     .catch(e => console.log(e));
+    // },
+    // getUnits() {
+    //   axios.get(`${this.api}/units/`, {
+    //       headers: {
+    //         'Authorization': `Token ${this.token}`
+    //       }
+    //     })
+    //     .then(responce => {
+    //       this.unitOption = responce.data;
+    //     })
+    //     .catch(e => console.log(e));
+    // },
     itemsbybranch() {
       this.loading = true;
       this.info = [];
@@ -228,157 +166,8 @@ export default {
         this.collapseActive = id;
       }
     },
-    additems() {
-      this.$v.$touch()
-      if (this.$v.branchValue.$invalid || this.$v.metterValue.$invalid || this.$v.count.$invalid) {
-        this.$toast.open({
-          message: 'Ввидите данные правильно',
-          type: "error"
-        })
-      } else {
-        this.loading = true;
-        axios.post(`${this.api}/additems/`, {
-            "branch": this.branchValue.id,
-            "itemTemplate": this.metterValue.id,
-            "count": +this.count
-          }, 
-          {
-            headers: {
-              'Authorization': `Token ${this.token}`
-            }
-          })
-          .then(response => {
-            if(response.data.code == 1) {
-              this.$toast.success('Добавленно');
-              this.itemsbybranch();
-            } else {
-              this.$toast.error(response.data.msg);
-            }
-          })
-          .catch(e => console.log(e))
-          .finally(()=> {
-            this.closeModalAdd();
-            this.loading = false;
-          });
-      }
-    },
-    // editMetter() {
-    //   this.$v.$touch()
-    //   if (this.$v.metterCode.$invalid || this.$v.metterName.$invalid || this.$v.metterUnitValue.$invalid || this.$v.metterGroupNameValue.$invalid || this.$v.metterColorValue.$invalid) {
-    //     this.$toast.open({
-    //       message: 'Ввидите данные правильно',
-    //       type: "error"
-    //     })
-    //   } else {
-    //     this.loading = true;
-    //     this.loading = true;
-    //     axios.put(`${this.api}/itemTemplates/${this.metterId}/`, {
-    //         "code": this.metterCode,
-    //         "name": this.metterName,
-    //         "unit": this.metterUnitValue.code,
-    //         "group": this.metterGroupNameValue.code,
-    //         "color": this.metterColorValue.id
-    //       },
-    //       {
-    //         headers: {
-    //           'Authorization': `Token ${this.token}`
-    //         }
-    //       })
-    //       .then(response => {
-    //         // console.log(response.data);
-    //         // console.log(response.data.code);
-    //         if(response.data.code == 1) {
-    //           this.$toast.success('Изменено');
-    //           this.getMetterGroups();
-    //         } else {
-    //           this.$toast.error(response.data.msg);
-    //         }
-    //       })
-    //       .catch(e => console.log(e))
-    //       .finally(()=> {
-    //         this.closeModalAdd();
-    //         this.loading = false;
-    //       });
-    //   }
-    // },
-    deleteMetter() {
-      this.loading = true;
-      axios.delete(`${this.api}/ItemTemplate-delete/${this.metterId}/`, {
-          headers: {
-            'Authorization': `Token ${this.token}`
-          }
-        })
-        .then(response => {
-          if(response.data.code == 1) {
-            this.$toast.success('Удаленно');
-            this.getMetterGroups();
-          } else {
-            this.$toast.error(response.data.msg);
-          }
-        })
-        .catch(e => console.log(e))
-        .finally(()=> {
-          this.closeModalAdd();
-          this.loading = false;
-        });
-    },
-    openModalDel(id) {
-      this.metterId = id;
-      this.modalDelete = true;
-    },
-    openModalAdd() {
-      this.modalAdd = true;
-    },
-    closeModalAdd() {
-      this.modalAdd = false;
-      this.modalDelete = false;
-      this.text = true;
-      this.btnChange = false;
-      this.metterGroupValue = '';
-      this.metterValue = '';
-      this.unitValue = '';
-      this.count = '';
-      this.$v.$reset();
-    },
-    changeModalAdd(params, item) {
-      this.modalAdd = true;
-      this.btnChange = true;
-      this.text = false;
-      if(params == 1) {
-        // console.log(item);
-        this.madalParams = 1;
-        this.metterGroupId = item.id;
-        this.metterGroupName = item.name;
-      } else {
-        // console.log(item);
-        this.madalParams = 2;
-        this.metterGroupNameValue = this.metterGroupNameOption.find(items => {
-          if(items.code == item.group) {
-            return item
-          }
-        })
-        this.metterId = item.id;
-        this.metterName = item.name;
-        this.metterCode = item.code;
-        this.metterUnitValue = this.metterUnitOption.find(items => {
-          if(items.code == item.unit) {
-            return item
-          }
-        })
-        this.metterColorValue = this.metterColorOption.find(items => {
-          if(items.id == item.color) {
-            return item
-          }
-        })
-        // this.lastName = lastName;
-        // this.firstName = firstName;
-      }
-    }
   },
   watch: {
-    branchValue() {
-      this.itemsbybranch();
-    },
     metterGroupValue() {
       this.metterOption = [];
       if(this.metterGroupValue != '') {
@@ -404,12 +193,9 @@ export default {
           }
         });
       }
-    },
+    }
   },
   validations: {
-    branchValue: {
-      required
-    },
     metterGroupValue: {
       required
     },
@@ -792,6 +578,51 @@ export default {
           transform: translateY(calc(50% - 16px));
         }
       }
+      
+      .count-btn {
+        display: flex;
+        align-items: center;
+        .btn {
+          width: 45px;
+          height: 34px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-family: 'Roboto';
+          font-size: 1.5rem;
+          line-height: 1.5rem;
+          color: #fff;
+          // background: gray;
+          // padding: 5px 15px;
+          border-radius: 0;
+          margin-bottom: 15px;
+          outline: none;
+          &:focus {
+            box-shadow: none;
+          }
+          &-left {
+            border-bottom-left-radius: 10px;
+            border-top-left-radius: 10px;
+            // background-color: red;
+          }
+          &-right {
+            border-bottom-right-radius: 10px;
+            border-top-right-radius: 10px;
+            // background-color: green;
+          }
+        }
+        p {
+          // width: 34px;
+          height: 34px;
+          font-family: 'Roboto';
+          font-size: 1.5rem !important;
+          line-height: 1.5rem !important;
+          background: rgba(gray, 0.2);
+          padding: 5px 10px;
+          border-radius: none;
+          margin-bottom: 15px !important;
+        }
+      }
     }
   }
   .modal-delete {
@@ -828,48 +659,6 @@ export default {
           padding: 8px 30px;
           text-transform: uppercase;
         }
-      }
-    }
-  }
-  .filter-card {
-    // display: flex;
-    // justify-content: space-between;
-    // align-items: center;
-    background-color: #fff;
-    transition: all .5s ease-in-out;
-    position: relative;
-    border: 0rem solid transparent;
-    border-radius: 1.25rem;
-    box-shadow: 0rem 0.3125rem 0.3125rem 0rem rgba(43, 37, 51, 0.05);
-    padding: 15px;
-    .selects {
-      // background: #fff;
-      .multiselect {
-        cursor: pointer;
-        border: 2px solid rgba(0,0,0,.12);
-        border-radius: 5px;
-        // margin-bottom: 12px;
-        padding: 2px 0;
-        font-family: 'Roboto';
-        &:hover {
-          border-color: rgb(175, 175, 175);
-          transition: 0.3s all ease-in-out;
-        }
-      }
-      .multiselect__single {
-        font-family: 'Roboto';
-      }
-      span {
-        padding: 2px 5px 0 5px !important;
-        margin-bottom: 2px;
-        z-index: 10;
-      }
-      .multiselect:hover+span {
-        color: rgb(175, 175, 175);
-        transition: 0.3s all ease-in-out;
-      }
-      .multiselect .multiselect__tags {
-        background: transparent !important;
       }
     }
   }

@@ -1,7 +1,7 @@
 <template>
   <section class="WRStore">
     <div class="breadcrumb p-0">
-      <router-link :to="{name: 'Dashboard'}" class="breadcrumb__link"><i class="bx bx-home-alt"></i></router-link>
+      <router-link :to="{name: 'WRStore'}" class="breadcrumb__link"><i class="bx bx-home-alt"></i></router-link>
       <div class="breadcrumb__item">
         <i class="fa fa-angle-right"></i>
         <p>{{ $t('Склад') }}</p>

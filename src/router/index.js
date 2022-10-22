@@ -289,7 +289,7 @@ const routes = [
     }
   },
   {
-    path: '/wr-raw-material',
+    path: '/wr-store/wr-raw-material',
     name: 'WRRawMaterial',
     component: WRRawMaterial,
     meta: {

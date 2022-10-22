@@ -22,7 +22,7 @@
           </div>
           <div class="table-custom__body">
             <div v-for="item in infoSend" :key="item.id" class="table-custom__body-item">
-              <p class="w-1">{{ item.sendBranchName }}</p>
+              <p class="w-1">{{ item.sentToBranchName }}</p>
               <p class="w-2">{{ item.sendDateTime | moment("DD/MM/YYYY - H:m") }}</p>
               <p class="w-3">{{ item.recvState == 1 ? $t('Ожидание приемки') : item.recvState == 2 ? $t('Принято') : $t('Отклонено') }}</p>
               <div class="w-4 btns">
@@ -82,8 +82,8 @@
         <div class="list">
           <h1>Список:</h1>
           <div v-for="item in infoModal.items" :key="item.index" class="list__item">
-            <p>{{ item.productTemplateName }}:</p>
-            <p>{{ item.count }} dona</p>
+            <p>{{ item.itemTemplateName }}:</p>
+            <p>{{ item.count }} {{  }}</p>
           </div>
         </div>
       </div>
@@ -200,7 +200,7 @@ export default {
     },
     deleteItemClaim() {
       this.loading = true;
-      axios.delete(`${this.api}/deleteItemClaim/?id=${this.claimId}`, {
+      axios.delete(`${this.api}/deleteItemClaim/?claimId=${this.claimId}`, {
           headers: {
             'Authorization': `Token ${this.token}`
           }

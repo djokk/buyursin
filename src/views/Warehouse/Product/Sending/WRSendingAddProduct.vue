@@ -47,17 +47,19 @@
     <div v-if="modalAdd" class="modal-add">
       <form class="form" action="">
         <div class="selects">
-          <multiselect v-model="metterGroupValue" :class="$v.metterGroupValue.$error ? 'is-invalid': ''" placeholder="" label="name" track-by="code" :options="metterGroupOption" :multiple="false" :taggable="false" :searchable="false"></multiselect>
+          <multiselect v-model="metterGroupValue" :class="$v.metterGroupValue.$error ? 'is-invalid': ''" placeholder="" label="Name" track-by="Id" :options="metterGroupOption" :multiple="false" :taggable="false" :searchable="false" :allow-empty="false"></multiselect>
           <span>{{ $t('groupMatter') }}</span>
         </div>
         <div class="selects">
-          <multiselect v-model="metterValue" :class="$v.metterValue.$error ? 'is-invalid': ''" placeholder="" label="name" track-by="code" :options="metterOption" :multiple="false" :taggable="false" :searchable="false"></multiselect>
+          <multiselect v-model="metterValue" :class="$v.metterValue.$error ? 'is-invalid': ''" placeholder="" label="Name" track-by="Id" :options="metterOption" :multiple="false" :taggable="false" :searchable="false" :allow-empty="false"></multiselect>
           <span>{{ $t('matter') }}</span>
         </div>
+        <p>{{ $t('Общий количесто') }}: {{ this.countMetter }}</p>
         <div class="name count">
-          <button @click.prevent="minus()" class="btn btn-left bg-danger" :disabled='btnIsDisabled'><i class='bx bx-minus'></i></button>
-          <p>{{ count }}</p>
-          <button @click.prevent="plus()" class="btn btn-right bg-success"><i class='bx bx-plus'></i></button>
+          <button @click.prevent="minus()" class="btn btn-left bg-danger" :disabled='btnMinusDisabled'><i class='bx bx-minus'></i></button>
+          <input v-model.number="count" type="number">
+          <!-- <p>{{ count }}</p> -->
+          <button @click.prevent="plus()" class="btn btn-right bg-success" :disabled='btnPlusDisabled'><i class='bx bx-plus'></i></button>
         </div>
         <!-- <div class="name count">
           <div class="position-relative" :class="$v.count.$error ? 'is-invalid': ''">
@@ -88,9 +90,10 @@ export default {
   data() {
     return {
       loading: false,
-      modalAdd: true,
+      modalAdd: false,
       castelmetterValue: false,
-      btnIsDisabled: false,
+      btnMinusDisabled: false,
+      btnPlusDisabled: false,
       branchValue: [],
       branchOption: [],
       metterGroupValue: '',
@@ -98,12 +101,13 @@ export default {
       metterValue: '',
       metterOption: [],
       metter: [],
-      unitValue: '',
-      unitOption: [],
+      countMetter: 0,
+      countUnit: '',
       count: 0,
       info: [],
       sendInfo: [],
       ItemClaim: [],
+      // infoItemsbybranch: [],
       token: '',
       api: '',
     }
@@ -117,8 +121,11 @@ export default {
   },
   mounted() {
     this.token = sessionStorage.getItem('token');
+    this.auth = JSON.parse(sessionStorage.getItem('auth'));
     this.getBranches();
-    this.getMetterGroups();
+    // this.getMetterGroups();
+    this.itemsbybranch();
+    this.closeModalAdd();
   },
   methods: {
     getBranches() {
@@ -145,67 +152,100 @@ export default {
           this.loading = false;
         });
     },
-    getMetterGroups() {
-      // this.info = [];
-      this.metterGroupOption = [];
-      axios.get(`${this.api}/itemgroups/`, {
+    // getMetterGroups() {
+    //   // this.info = [];
+    //   this.metterGroupOption = [];
+    //   axios.get(`${this.api}/itemgroups/`, {
+    //       headers: {
+    //         'Authorization': `Token ${this.token}`
+    //       }
+    //     })
+    //     .then(response => {
+    //       // console.log(response.data);
+    //       // this.userGroup = response.data;
+    //       for(let i = 0; i < response.data.length; i++) {
+    //         const list = {
+    //           'id': response.data[i].id,
+    //           'name': response.data[i].name,
+    //           'list': []
+    //         }
+    //         this.metter.push(list);
+    //       }
+    //       for (let index = 0; index < response.data.length; index++) {
+    //         const element = {
+    //           code: response.data[index].id,
+    //           name: response.data[index].name
+    //         }
+    //         this.metterGroupOption.push(element)
+    //       }
+    //       this.getMetter();
+    //     })
+    //     .catch(e => console.log(e))
+    //     .finally(() => { this.loading = false; });
+    // },
+    // getMetter() {
+    //   axios.get(`${this.api}/itemTemplates/`, {
+    //       headers: {
+    //         'Authorization': `Token ${this.token}`
+    //       }
+    //     })
+    //     .then(response => {
+    //       // console.log(response.data);
+    //       for (let i = 0; i < this.metter.length; i++) {
+    //         for(let t = 0; t < response.data.length; t++) {
+    //           if(this.metter[i].id == response.data[t].group) {
+    //             this.metter[i].list.push(response.data[t]);
+    //           }
+    //         }
+    //       }
+    //       // this.metterAll = response.data;
+    //       this.getUnits();
+    //     })
+    //     .catch(e => console.log(e));
+    // },
+    // getUnits() {
+    //   axios.get(`${this.api}/units/`, {
+    //       headers: {
+    //         'Authorization': `Token ${this.token}`
+    //       }
+    //     })
+    //     .then(responce => {
+    //       this.unitOption = responce.data;
+    //     })
+    //     .catch(e => console.log(e));
+    // },
+    itemsbybranch() {
+      this.loading = true;
+      this.infoItemsbybranch = [];
+      axios.get(`${this.api}/itemsbybranch/?branchId=${this.auth.branchId}`, {
           headers: {
             'Authorization': `Token ${this.token}`
           }
         })
         .then(response => {
-          // console.log(response.data);
-          // this.userGroup = response.data;
-          for(let i = 0; i < response.data.length; i++) {
-            const list = {
-              'id': response.data[i].id,
-              'name': response.data[i].name,
-              'list': []
-            }
-            this.metter.push(list);
-          }
+          this.metter = response.data;
           for (let index = 0; index < response.data.length; index++) {
-            const element = {
-              code: response.data[index].id,
-              name: response.data[index].name
-            }
-            this.metterGroupOption.push(element)
+            this.metterGroupOption.push({
+              Id: index + 1,
+              Name: response.data[index].name
+            });
           }
-          this.getMetter();
-        })
-        .catch(e => console.log(e))
-        .finally(() => { this.loading = false; });
-    },
-    getMetter() {
-      axios.get(`${this.api}/itemTemplates/`, {
-          headers: {
-            'Authorization': `Token ${this.token}`
-          }
-        })
-        .then(response => {
           // console.log(response.data);
-          for (let i = 0; i < this.metter.length; i++) {
-            for(let t = 0; t < response.data.length; t++) {
-              if(this.metter[i].id == response.data[t].group) {
-                this.metter[i].list.push(response.data[t]);
-              }
-            }
-          }
-          // this.metterAll = response.data;
-          this.getUnits();
+          // for (let index = 0; index < response.data.length; index++) {
+          //   for (let t = 0; t < response.data[index].items.length; t++) {
+          //     this.metter.push(response.data[index].items[t]);
+          //   }
+          // }
         })
-        .catch(e => console.log(e));
-    },
-    getUnits() {
-      axios.get(`${this.api}/units/`, {
-          headers: {
-            'Authorization': `Token ${this.token}`
+        .catch(error => {
+          // console.log(e.response);
+          if(error.response.status == 401) {
+            this.$toast.error(error.response.data.detail);
+            sessionStorage.setItem('token', '');
+            this.$router.push({ name: 'Auth' });
           }
         })
-        .then(responce => {
-          this.unitOption = responce.data;
-        })
-        .catch(e => console.log(e));
+        .finally(() => { this.loading = false; });
     },
     addMetter() {
       this.$v.$touch()
@@ -215,11 +255,35 @@ export default {
           type: "error"
         })
       } else {
-        this.sendInfo.push({
-          "itemTemplateName": this.metterValue.name, //- Id сырья
-          "itemTemplate": this.metterValue.id, //- Id сырья
-          "count": +this.count,
-          "unit": this.unitValue.name
+        let metterInfo = this.sendInfo.find(item => {
+          if(item.itemTemplateName == this.metterValue.Name) {
+            return item
+          }
+        });
+        // console.log(metterInfo);
+        if(metterInfo == undefined || metterInfo == null) {
+          this.sendInfo.push({
+            "itemTemplateName": this.metterValue.Name, //- Name сырья
+            "itemTemplate": this.metterValue.Id, //- Id сырья
+            "count": +this.count,
+            "unit": this.countUnit
+          });
+        } else {
+          this.sendInfo.find(item => {
+            if(item.itemTemplateName == this.metterValue.Name) {
+              item.count += +this.count;
+            }
+          });
+        }
+        this.metter.find(item => {
+          if(item.name == this.metterGroupValue.Name){
+            // console.log(item);
+            item.items.find(i => {
+              if(i.Name == this.metterValue.Name) {
+                i.Count = this.countMetter;
+              }
+            });
+          }
         });
         this.closeModalAdd();
       }
@@ -233,8 +297,9 @@ export default {
       this.btnChange = false;
       this.metterGroupValue = '';
       this.metterValue = '';
-      this.count = '';
-      this.unitValue = '';
+      this.count = 0;
+      this.countMetter = 0;
+      this.countUnit = '';
       this.$v.$reset();
     },
     delMetter(id) {
@@ -270,8 +335,8 @@ export default {
             if(response.data.code == 1) {
               this.$toast.success('Отправленно');
               setTimeout(() => {
-                this.$router.push({ name: 'SendingProduct' });
-              }, 2000);
+                this.$router.push({ name: 'WRSendingProduct' });
+              }, 1000);
             } else {
               this.$toast.error(response.data.msg);
             }
@@ -282,18 +347,27 @@ export default {
             this.loading = false;
           });
       }
+    },
+    minus() {
+      this.count = this.count - 1;
+      this.countMetter = this.countMetter + 1;
+    },
+    plus() {
+      this.count = this.count + 1;
+      this.countMetter = this.countMetter - 1;
     }
   },
   watch: {
     metterGroupValue() {
       this.metterOption = [];
-      if(this.metterGroupValue != '') {
-        const metter = this.metter.find(item => {
-          if(item.id == this.metterGroupValue.code) {
+      if(this.metterGroupValue != '' && this.metterGroupValue != null) {
+        let metter = this.metter.find(item => {
+          if(item.name == this.metterGroupValue.Name) {
             return item
           }
         });
-        this.metterOption = metter.list;
+        // console.log(metter);
+        this.metterOption = metter.items;
         if(this.castelmetterValue == false) {
           this.metterValue = '';
         } else {
@@ -303,11 +377,27 @@ export default {
     },
     metterValue() {
       if(this.metterValue != '') {
-        this.unitValue = this.unitOption.find(item => {
-          if(item.id == this.metterValue.unit) {
-            return item
-          }
-        });
+        this.countMetter = this.metterValue.Count;
+        this.countUnit = this.metterValue.Unit;
+      } else {
+        this.countMetter = 0;
+        this.countUnit = '';
+      }
+    },
+    count() {
+      if(this.count == 0) {
+        this.btnMinusDisabled = true;
+      } else {
+        this.btnMinusDisabled = false;
+      }
+      
+      this.countMetter = this.metterValue.Count - +this.count;
+    },
+    countMetter() {
+      if(this.countMetter == 0) {
+        this.btnPlusDisabled = true;
+      } else {
+        this.btnPlusDisabled = false;
       }
     },
     sendInfo() {
@@ -337,7 +427,7 @@ export default {
     },
     count: {
       required
-    },
+    }
   },
 }
 </script>
